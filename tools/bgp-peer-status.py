@@ -12,14 +12,14 @@ def runCommand(command):
     syslog.syslog(syslog.LOG_INFO, 'cmd: {}'.format(command))
     child = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     ret, err = child.communicate()
-    if err == None:
+    if err == None or err == '':
         return ret
     else:
         syslog.syslog(syslog.LOG_ERR, 'err: {}'.format(err))
         return ""
 
 def setPeerStatus(peerRemoteAddr, status):
-    newDict = {'BGP_NEIGHBORS': {peerRemoteAddr: {'peer_status': status}}}
+    newDict = {'BGP_NEIGHBOR': {peerRemoteAddr: {'peer_status': status}}}
     newJson = json.dumps(newDict)
     command = ['sonic-cfggen', '-a', newJson, '-w']
     runCommand(command)
@@ -27,10 +27,9 @@ def setPeerStatus(peerRemoteAddr, status):
 def getPeerStatus(peerRemoteAddr):
     command = ['vtysh', '-c', 'show bgp neighbor {}'.format(peerRemoteAddr)]
     ret = runCommand(command)
-    if ret != '':
-        res = re.search('BGP state = [a-zA-Z]*', ret)
-        res = res.group()[12:len(res.group())]
-        return res
+    pos = re.search('BGP state = [a-zA-Z]*', ret)
+    if pos != None:
+        return pos.group()[12:len(pos.group())]
     else:
         return ""
 
@@ -46,7 +45,7 @@ def main():
         sonicCfgDict = json.loads(sonicCfgJson)
 
         for (k, v) in sonicCfgDict.items():
-            if k == 'BGP_NEIGHBORS':
+            if k == 'BGP_NEIGHBOR':
                 bgpNeighbors = v
                 for (k, v) in bgpNeighbors.items():
                     peerRemoteAddr = k
